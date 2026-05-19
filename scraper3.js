@@ -15,7 +15,10 @@ async function main(){
   const browser=await chromium.launch();
   const page=await browser.newPage();
   await page.goto('https://remoteok.com');
-  await page.locator('#premium-popup-close').click({button:'left'}); // closes the annoying popup
+  let popup=await page.locator('#premium-popup-close');
+  if(await popup.count() >0){
+    await popup.click({button:'left'});
+  }
   let jobs=await page.locator('.company.position.company_and_position').all();
   let i=0;
   for(const job of jobs){
