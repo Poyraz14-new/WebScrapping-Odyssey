@@ -1,10 +1,11 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const { program } = require('commander');
+const { createObjectCsvWriter } = require('csv-writer');
 
 program
   .option('-o, --output <file>', 'output filename', 'GettingRejectedMore.json')
-  .option('-n, --number <integer>', 'number of jobs to scrape', '51')
+  .option('-n, --number <integer>', 'number of jobs to scrape [default=51]', '51')
   .parse();
 
 const opts = program.opts();
@@ -30,15 +31,20 @@ async function main(){
     let title=await job.locator('.preventLink').locator('h2').textContent();
     let companyName=await job.locator('.companyLink').locator('h3').textContent();
     let location=await job.locator('.location').first().textContent();
+
+    let rawLocation = location.trim();
+    let cleanLocation = rawLocation.includes('Upgrade to Premium') ? null : rawLocation;
+
     const salaryEl = job.locator('.salary');
-    let salary=((await salaryEl.count())>0) ? (await salaryEl.textContent().replace('💰','')) : NaN;
+    let salary=((await salaryEl.count())>0) ? (await salaryEl.textContent()).replace('💰','') : NaN;
     
     res.push({
         title:title.trim(),
         companyName:companyName.trim(),
-        location:location.trim().replace('💰 Upgrade to Premium to see salary',null),
+        location:cleanLocation,
         salary
     });
+
     }catch(err){
         console.log('Failed to fetch content\n',`=${err.message}`);
     }
@@ -49,5 +55,15 @@ async function main(){
 }catch(err){
     console.log('Failed to load page/close page\n',`=${err.message}`);
 }
+const csvWriter=createObjectCsvWriter({
+  path: opts.output.replace('.json','.csv'),
+  header: [
+    { id: 'title', title: 'Job Title' },
+    { id: 'companyName', title: 'Company Name' },
+    { id: 'location', title: 'Location' },
+    { id: 'salary', title: 'Salary' },
+  ]
+});
+  await csvWriter.writeRecords(res);
   fs.writeFileSync(opts.output, JSON.stringify(res,null,2));
 } main();
